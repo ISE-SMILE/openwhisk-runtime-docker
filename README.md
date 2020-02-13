@@ -17,9 +17,13 @@
 #
 -->
 
-# Apache OpenWhisk runtimes for docker
+# Apache OpenWhisk runtimes for docker with Life-Cycle Hook 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0)
-[![Build Status](https://travis-ci.org/apache/openwhisk-runtime-docker.svg?branch=master)](https://travis-ci.org/apache/openwhisk-runtime-docker)
+
+This is a fork of the [Apache OpenWhisk runtimes for docker](https://github.com/apache/openwhisk-runtime-docker).
+
+## The Life-Cylce Hooks
+<!-- TODO: Add description of the concept and links to the wepage, whitepaper etc. -->
 
 
 ### Give it a try today
@@ -36,7 +40,7 @@ zip myAction.zip exec
 
 Create the action using the docker image for the runtime
 ```
-wsk action update myAction myAction.zip --docker openwhisk/dockerskeleton:1.3.2
+wsk action update myAction myAction.zip --docker smileproject/lifecycleskeleton:1.3.2
 ```
 
 This works on any deployment of Apache OpenWhisk
@@ -52,7 +56,7 @@ wsk action update myAction myAction.zip --native
 ```
 ./gradlew :core:actionProxy:distDocker :sdk:docker:distDocker
 ```
-This will produce the image `whisk/dockerskeleton`
+This will produce the image `whisk/lifecycleskeleton`
 
 Build and Push image
 ```
@@ -60,7 +64,7 @@ docker login
 ./gradlew core:actionProxy:distDocker -PdockerImagePrefix=$prefix-user -PdockerRegistry=docker.io
 ```
 
-Deploy OpenWhisk using ansible environment that contains the runtime of type `blackboxes` with name `dockerskeleton`
+Deploy OpenWhisk using ansible environment that contains the runtime of type `blackboxes` with name `lifecycleskeleton`
 Assuming you have OpenWhisk already deploy localy and `OPENWHISK_HOME` pointing to root directory of OpenWhisk core repository.
 
 Set `ROOTDIR` to the root directory of this repository.
@@ -84,11 +88,11 @@ wskdev fresh -t local-docker
 
 To use as docker action push to your own dockerhub account
 ```
-docker tag whisk/dockerskeleton $user_prefix/dockerskeleton
-docker push $user_prefix/dockerskeleton
+docker tag whisk/lifecycleskeleton $user_prefix/dockerskeleton
+docker push $user_prefix/lifecycleskeleton
 ```
 Then create the action using your image from dockerhub
 ```
-wsk action update myAction myAction.zip --docker $user_prefix/dockerskeleton
+wsk action update myAction myAction.zip --docker $user_prefix/lifecycleskeleton
 ```
 The `$user_prefix` is usually your dockerhub user id.

@@ -15,5 +15,5 @@
  * limitations under the License.
  */
 
-ext.dockerImageName = 'dockerskeleton'
+ext.dockerImageName = 'lifecycleskeleton'
 apply from: '../../gradle/docker.gradle'

@@ -115,7 +115,7 @@ class ActionRunner:
                 env['__OW_%s' % k.upper()] = v
         return env
 
-    # runs the action, called iff self.verify() is True.
+    # runs the action, called if self.verify() is True.
     # @param args is a JSON object representing the input to the action
     # @param env is the environment for the action to run in (defined edge
     # host, auth key)
@@ -247,6 +247,71 @@ def init():
         return complete(response)
 
 
+def log(msg):
+    sys.stdout.write('%s\n' % msg)
+    sys.stdout.flush()
+    sys.stderr.write('%s\n' % msg)
+    sys.stderr.flush()
+
+
+@proxy.route('/onstart', methods=['POST'])
+def start():
+    def error():
+        response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.'})
+        response.status_code = 404
+        return complete(response)    
+    message = flask.request.get_json(force=True, silent=True)
+    if message and not isinstance(message, dict):
+        return error()
+    else:
+        args = message.get('value', {}) if message else {}
+        if not isinstance(args, dict):
+            return error()
+    
+    log("onStart")
+    response = flask.jsonify({'msg': 'onStart'})
+    response.status_code = 200
+    return response
+
+
+@proxy.route('/onpause', methods=['POST'])
+def pause():
+    def error():
+        response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.'})
+        response.status_code = 404
+        return complete(response)
+    message = flask.request.get_json(force=True, silent=True)
+    if message and not isinstance(message, dict):
+        return error()
+    else:
+        args = message.get('value', {}) if message else {}
+        if not isinstance(args, dict):
+            return error()
+    log("onpause")
+    response = flask.jsonify({'msg': 'onpause'})
+    response.status_code = 200
+    return response
+
+
+@proxy.route('/onfinish', methods=['POST'])
+def finish():
+    def error():
+        response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.'})
+        response.status_code = 404
+        return complete(response)
+    message = flask.request.get_json(force=True, silent=True)
+    if message and not isinstance(message, dict):
+        return error()
+    else:
+        args = message.get('value', {}) if message else {}
+        if not isinstance(args, dict):
+            return error()
+    log("onfinish")
+    response = flask.jsonify({'msg': 'onfinish'})
+    response.status_code = 200
+    return response
+
+
 @proxy.route('/run', methods=['POST'])
 def run():
     def error():
@@ -278,10 +343,7 @@ def run():
 
 def complete(response):
     # Add sentinel to stdout/stderr
-    sys.stdout.write('%s\n' % ActionRunner.LOG_SENTINEL)
-    sys.stdout.flush()
-    sys.stderr.write('%s\n' % ActionRunner.LOG_SENTINEL)
-    sys.stderr.flush()
+    log(ActionRunner.LOG_SENTINEL)
     return response
 
 

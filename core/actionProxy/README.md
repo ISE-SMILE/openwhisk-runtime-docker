@@ -17,9 +17,9 @@
 #
 -->
 
-## Skeleton for "docker actions"
+## Skeleton for "docker actions" with life-cycle hooks
 
-The `dockerskeleton` base image is useful for actions that run scripts (e.g., bash, perl, python) and compiled binaries or, more generally, any native executable. It provides a proxy service (using Flask, a Python web microframework) that implements the required `/init` and `/run` routes to interact with the OpenWhisk invoker service. The implementation of these routes is encapsulated in a class named `ActionRunner` which provides a basic framework for receiving code from an invoker, preparing it for execution, and then running the code when required.
+The `lifecycleskeleton` base image is useful for actions that run scripts (e.g., bash, perl, python) and compiled binaries or, more generally, any native executable. It provides a proxy service (using Flask, a Python web microframework) that implements the required `/init`, `/run`,`/onstart`,`/onpause` and `/onfinish` routes to interact with the OpenWhisk invoker service. The implementation of these routes is encapsulated in a class named `ActionRunner` which provides a basic framework for receiving code from an invoker, preparing it for execution, and then running the code when required.
 
 The initialization of the `ActionRunner` is done via `init()` which receives a JSON object containing a `code` property whose value is the source code to execute. It writes the source to a `source` file.
 
@@ -37,4 +37,6 @@ By convention the action executable may log messages to `stdout` and `stderr`. T
 
 A return value is optional but must be a JSON object (properly serialized) if present.
 
-For an example implementation of an `ActionRunner` that overrides `epilogue()` and `build()` see the [Swift 3](../swift3Action/swift3runner.py) action proxy. An implementation of the runner for Python actions is available [here](https://github.com/apache/openwhisk-runtime-python/blob/master/core/pythonAction/pythonrunner.py). Lastly, an example Docker action that uses `C` is available in this [example](../../sdk/docker/Dockerfile).
+The life-cycle hooks (`onstart`,`onpause` and `onfinish` ) are implemented similarly as the `run()` method with the same assumptions. Note however that failures in these functions will be ignored in some cases. Only the `run()`method has re-execution guaranties in place.
+
+<!-- TODO: add link to example implementation -->
