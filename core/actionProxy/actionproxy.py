@@ -115,6 +115,22 @@ class ActionRunner:
                 env['__OW_%s' % k.upper()] = v
         return env
 
+    def _error(self, msg):
+        sys.stdout.write('%s\n' % msg)
+        return (502, {'error': msg})
+
+    def stop(self, args, env):
+        pass
+
+    def pause(self, args, env):
+        pass
+
+    def start(self, args, env):
+        pass
+
+    def features(self):
+        return "OK"
+
     # runs the action, called if self.verify() is True.
     # @param args is a JSON object representing the input to the action
     # @param env is the environment for the action to run in (defined edge
@@ -122,14 +138,9 @@ class ActionRunner:
     # return JSON object result of running the action or an error dictionary
     # if action failed
     def run(self, args, env):
-        def error(msg):
-            # fall through (exception and else case are handled the same way)
-            sys.stdout.write('%s\n' % msg)
-            return (502, {'error': 'The action did not return a dictionary.'})
-
         try:
             input = json.dumps(args)
-            if len(input) > 131071:             # MAX_ARG_STRLEN (131071) linux/binfmts.h
+            if len(input) > 131071:  # MAX_ARG_STRLEN (131071) linux/binfmts.h
                 # pass argument via stdin
                 p = subprocess.Popen(
                     [self.binary],
@@ -150,7 +161,7 @@ class ActionRunner:
             (o, e) = p.communicate(input=input.encode())
 
         except Exception as e:
-            return error(e)
+            return self._error(e)
 
         # stdout/stderr may be either text or bytes, depending on Python
         # version, so if bytes, decode to text. Note that in Python 2
@@ -161,12 +172,12 @@ class ActionRunner:
             e = e.decode('utf-8')
 
         # get the last line of stdout, even if empty
-        lastNewLine = o.rfind('\n', 0, len(o)-1)
+        lastNewLine = o.rfind('\n', 0, len(o) - 1)
         if lastNewLine != -1:
             # this is the result string to JSON parse
-            lastLine = o[lastNewLine+1:].strip()
+            lastLine = o[lastNewLine + 1:].strip()
             # emit the rest as logs to stdout (including last new line)
-            sys.stdout.write(o[:lastNewLine+1])
+            sys.stdout.write(o[:lastNewLine + 1])
         else:
             # either o is empty or it is the result string
             lastLine = o.strip()
@@ -179,9 +190,9 @@ class ActionRunner:
             if isinstance(json_output, dict):
                 return (200, json_output)
             else:
-                return error(lastLine)
+                return self._error(lastLine)
         except Exception:
-            return error(lastLine)
+            return self._error(lastLine)
 
     # initialize code from inlined string
     def initCodeFromString(self, message):
@@ -202,13 +213,16 @@ class ActionRunner:
             print('err', str(e))
             return False
 
+
 proxy = flask.Flask(__name__)
 proxy.debug = False
 # disable re-initialization of the executable unless explicitly allowed via an environment
 # variable PROXY_ALLOW_REINIT == "1" (this is generally useful for local testing and development)
 proxy.rejectReinit = 'PROXY_ALLOW_REINIT' not in os.environ or os.environ['PROXY_ALLOW_REINIT'] != "1"
 proxy.initialized = False
+proxy.started = False
 runner = None
+
 
 def setRunner(r):
     global runner
@@ -220,9 +234,7 @@ def init():
     if proxy.rejectReinit is True and proxy.initialized is True:
         msg = 'Cannot initialize the action more than once.'
         sys.stderr.write(msg + '\n')
-        response = flask.jsonify({'error': msg})
-        response.status_code = 403
-        return response
+        return error(msg, 403)
 
     message = flask.request.get_json(force=True, silent=True)
     if message and not isinstance(message, dict):
@@ -239,12 +251,11 @@ def init():
         status = False
 
     if status is True:
+        proxy.started = False
         proxy.initialized = True
-        return ('OK', 200)
+        return (runner.features(),200)
     else:
-        response = flask.jsonify({'error': 'The action failed to generate or locate a binary. See logs for details.'})
-        response.status_code = 502
-        return complete(response)
+        return error('The action failed to generate or locate a binary. See logs for details.', 502)
 
 
 def log(msg):
@@ -254,21 +265,22 @@ def log(msg):
     sys.stderr.flush()
 
 
+def error(msg="Internal Error", code=500):
+    response = flask.jsonify({'error': msg})
+    response.status_code = code
+    return complete(response)
+
+
 @proxy.route('/onstart', methods=['POST'])
 def start():
-    def error():
-        response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.'})
-        response.status_code = 404
-        return complete(response)    
-    message = flask.request.get_json(force=True, silent=True)
-    if message and not isinstance(message, dict):
-        return error()
-    else:
-        args = message.get('value', {}) if message else {}
-        if not isinstance(args, dict):
-            return error()
-    
+    if proxy.started is True:
+        msg = 'Cannot trigger start the action more than once.'
+        sys.stderr.write(msg + '\n')
+        return error(msg, 500)
+
+    proxy.started = True
     log("onStart")
+    runner.start()
     response = flask.jsonify({'msg': 'onStart'})
     response.status_code = 200
     return response
@@ -276,18 +288,8 @@ def start():
 
 @proxy.route('/onpause', methods=['POST'])
 def pause():
-    def error():
-        response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.'})
-        response.status_code = 404
-        return complete(response)
-    message = flask.request.get_json(force=True, silent=True)
-    if message and not isinstance(message, dict):
-        return error()
-    else:
-        args = message.get('value', {}) if message else {}
-        if not isinstance(args, dict):
-            return error()
     log("onpause")
+    runner.pause()
     response = flask.jsonify({'msg': 'onpause'})
     response.status_code = 200
     return response
@@ -295,18 +297,8 @@ def pause():
 
 @proxy.route('/onfinish', methods=['POST'])
 def finish():
-    def error():
-        response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.'})
-        response.status_code = 404
-        return complete(response)
-    message = flask.request.get_json(force=True, silent=True)
-    if message and not isinstance(message, dict):
-        return error()
-    else:
-        args = message.get('value', {}) if message else {}
-        if not isinstance(args, dict):
-            return error()
     log("onfinish")
+    runner.stop()
     response = flask.jsonify({'msg': 'onfinish'})
     response.status_code = 200
     return response
@@ -314,18 +306,14 @@ def finish():
 
 @proxy.route('/run', methods=['POST'])
 def run():
-    def error():
-        response = flask.jsonify({'error': 'The action did not receive a dictionary as an argument.'})
-        response.status_code = 404
-        return complete(response)
 
     message = flask.request.get_json(force=True, silent=True)
     if message and not isinstance(message, dict):
-        return error()
+        return error('The action did not receive a dictionary as an argument.', 404)
     else:
         args = message.get('value', {}) if message else {}
         if not isinstance(args, dict):
-            return error()
+            return error('The action did not receive a dictionary as an argument.', 404)
 
     if runner.verify():
         try:
@@ -333,11 +321,9 @@ def run():
             response = flask.jsonify(result)
             response.status_code = code
         except Exception as e:
-            response = flask.jsonify({'error': 'Internal error. {}'.format(e)})
-            response.status_code = 500
+            return error('Internal error. {}'.format(e), 500)
     else:
-        response = flask.jsonify({'error': 'The action failed to locate a binary. See logs for details.'})
-        response.status_code = 502
+        return error('The action failed to locate a binary. See logs for details.',502)
     return complete(response)
 
 
@@ -351,6 +337,7 @@ def main():
     port = int(os.getenv('FLASK_PROXY_PORT', 8080))
     server = WSGIServer(('0.0.0.0', port), proxy, log=None)
     server.serve_forever()
+
 
 if __name__ == '__main__':
     setRunner(ActionRunner())
