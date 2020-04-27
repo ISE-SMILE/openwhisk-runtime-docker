@@ -16,16 +16,16 @@
 #
 
 # Dockerfile for docker skeleton (useful for running blackbox binaries, scripts, or Python 3 actions) .
-FROM python:3.6-alpine
+FROM python:3-slim-buster
 
 # Upgrade and install basic Python dependencies.
-RUN apk upgrade --update \
-  && apk add --no-cache bash perl jq zip git curl wget openssl ca-certificates sed openssh-client \
-  && update-ca-certificates \
-  && apk add --no-cache --virtual .build-deps bzip2-dev gcc libc-dev \
-  && pip install --upgrade pip setuptools six \
-  && pip install --no-cache-dir gevent==1.3.6 flask==1.0.2 \
-  && apk del .build-deps
+RUN apt-get upgrade && apt-get update
+RUN apt-get install -y bash perl jq zip git curl wget openssl ca-certificates sed openssh-client 
+RUN update-ca-certificates 
+RUN apt-get install -y gcc libc-dev bzip2
+RUN pip install --upgrade pip setuptools six 
+RUN pip install --no-cache-dir gevent==1.3.6 flask==1.0.2 
+
 
 ENV FLASK_PROXY_PORT 8080
 

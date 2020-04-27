@@ -66,6 +66,7 @@ class ActionRunner:
     def init(self, message):
         def prep():
             self.preinit()
+            log(message)
             if 'code' in message and message['code'] is not None:
                 binary = message['binary'] if 'binary' in message else False
                 if not binary:
@@ -73,6 +74,7 @@ class ActionRunner:
                 else:
                     return self.initCodeFromZip(message)
             else:
+                log("no prep")
                 return False
 
         if prep():
@@ -88,7 +90,9 @@ class ActionRunner:
             except Exception:
                 return False
         # verify the binary exists and is executable
-        return self.verify()
+        verified=self.verify()
+        log("verified: {}".format(verified))
+        return verified
 
     # optionally appends source to the loaded code during <init>
     def epilogue(self, init_arguments):
@@ -237,6 +241,7 @@ def init():
         return error(msg, 403)
 
     message = flask.request.get_json(force=True, silent=True)
+    log(message)
     if message and not isinstance(message, dict):
         flask.abort(404)
     else:
@@ -244,18 +249,18 @@ def init():
 
     if not isinstance(value, dict):
         flask.abort(404)
-
     try:
         status = runner.init(value)
     except Exception as e:
         status = False
+        return error('The action failed to generate or locate a binary with exception {}. See logs for details.'.format(e), 502)
 
     if status is True:
         proxy.started = False
         proxy.initialized = True
         return (runner.features(),200)
     else:
-        return error('The action failed to generate or locate a binary. See logs for details.', 502)
+        return error('The action failed to generate or locate a binary with exception . See logs for details.', 502)
 
 
 def log(msg):
