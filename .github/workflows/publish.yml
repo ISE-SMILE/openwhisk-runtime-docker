@@ -18,7 +18,8 @@ jobs:
         env:
           USERNAME: ${{ secrets.DOCKER_USER }}
           PASSWORD: ${{ secrets.DOCKER_KEY }}
-          DOCKERFILE: "core/actionProxy/Dockerfile"
+          BUILD_PATH: "./core/actionProxy/" 
+          DOCKERFILE: "Dockerfile"
           IMAGE_NAME: "smileproject/lifecycleskeleton"
           TAG_NAME: "v0.0.1"
           LATEST: "true"
